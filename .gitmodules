@@ -1,0 +1,3 @@
+[submodule "fabric-p4test"]
+	path = fabric-p4test
+	url = https://github.com/robertmacdavid/fabric-p4test.git
