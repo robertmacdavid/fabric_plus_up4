@@ -1,3 +1,7 @@
+# Project-specific
+fake_onos/
+p4c-out/
+
 # VSCode
 *.code-workspace
 

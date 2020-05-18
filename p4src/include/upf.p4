@@ -14,130 +14,11 @@
  * limitations under the License.
  */
 
+#ifndef __UPF__
+#define __UPF__
 
 
 
-#include <core.p4>
-#include <v1model.p4>
-
-#include "include/define.p4"
-#include "include/header.p4"
-#include "include/parser.p4"
-#include "include/checksum.p4"
-
-
-
-//------------------------------------------------------------------------------
-// ACL BLOCK
-//------------------------------------------------------------------------------
-control Acl(
-    inout parsed_headers_t hdr,
-    inout local_metadata_t local_meta,
-    inout standard_metadata_t std_meta) {
-
-    action set_port(port_num_t port) {
-        std_meta.egress_spec = port;
-    }
-
-    action punt() {
-        set_port(CPU_PORT);
-    }
-
-    action clone_to_cpu() {
-        // Cloning is achieved by using a v1model-specific primitive. Here we
-        // set the type of clone operation (ingress-to-egress pipeline), the
-        // clone session ID (the CPU one), and the metadata fields we want to
-        // preserve for the cloned packet replica.
-        clone3(CloneType.I2E, CPU_CLONE_SESSION_ID, { std_meta.ingress_port });
-    }
-
-    action drop() {
-        mark_to_drop(std_meta);
-        exit;
-    }
-
-    table acls {
-        key = {
-            std_meta.ingress_port       : ternary @name("inport");
-            local_meta.src_iface        : ternary @name("src_iface");
-            hdr.ethernet.src_addr       : ternary @name("eth_src");
-            hdr.ethernet.dst_addr       : ternary @name("eth_dst");
-            hdr.ethernet.ether_type     : ternary @name("eth_type");
-            hdr.ipv4.src_addr           : ternary @name("ipv4_src");
-            hdr.ipv4.dst_addr           : ternary @name("ipv4_dst");
-            hdr.ipv4.proto              : ternary @name("ipv4_proto");
-            local_meta.l4_sport         : ternary @name("l4_sport");
-            local_meta.l4_dport         : ternary @name("l4_dport");
-        }
-        actions = {
-            set_port;
-            punt;
-            clone_to_cpu;
-            drop;
-            NoAction;
-        }
-        const default_action = NoAction;
-        @name("acls")
-        counters = direct_counter(CounterType.packets_and_bytes);
-    }
-
-    apply {
-        acls.apply();
-    }
-}
-
-//------------------------------------------------------------------------------
-// ROUTING BLOCK
-//------------------------------------------------------------------------------
-control Routing(inout parsed_headers_t    hdr,
-                inout local_metadata_t    local_meta,
-                inout standard_metadata_t std_meta) {
-    action drop() {
-        mark_to_drop(std_meta);
-    }
-
-    action route(mac_addr_t dst_mac,
-                 port_num_t egress_port) {
-        std_meta.egress_spec = egress_port;
-        hdr.ethernet.src_addr = hdr.ethernet.dst_addr;
-        hdr.ethernet.dst_addr = dst_mac;
-        hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
-    }
-
-
-    table routes_v4 {
-        key = {
-            local_meta.next_hop_ip   : lpm @name("dst_prefix");
-            hdr.ipv4.src_addr      : selector;
-            hdr.ipv4.proto         : selector;
-            local_meta.l4_sport    : selector;
-            local_meta.l4_dport    : selector;
-        }
-        actions = {
-            route;
-        }
-        @name("hashed_selector")
-        implementation = action_selector(HashAlgorithm.crc16, 32w1024, 32w16);
-        size = MAX_ROUTES;
-    }
-
-    apply {
-        // Normalize IP address for routing table
-        // TODO: find a better alternative to this hack
-        if (hdr.outer_ipv4.isValid()) {
-            local_meta.next_hop_ip = hdr.outer_ipv4.dst_addr;
-        } else if (hdr.ipv4.isValid()){
-            local_meta.next_hop_ip = hdr.ipv4.dst_addr;
-        }
-
-        if (hdr.ipv4.ttl == 1) {
-            drop();
-        }
-        else {
-            routes_v4.apply();
-        }
-    }
-}
 
 
 //------------------------------------------------------------------------------
@@ -253,12 +134,12 @@ control ExecuteFar (inout parsed_headers_t    hdr,
 //------------------------------------------------------------------------------
 // INGRESS PIPELINE
 //------------------------------------------------------------------------------
-control PreQosPipe (inout parsed_headers_t    hdr,
+control UpfIngress (inout parsed_headers_t    hdr,
                     inout local_metadata_t    local_meta,
                     inout standard_metadata_t std_meta) {
 
 
-    counter(MAX_PDRS, CounterType.packets_and_bytes) pre_qos_pdr_counter;
+    counter(MAX_PDRS, CounterType.packets_and_bytes) upf_pre_pdr_counter;
 
     table my_station {
         key = {
@@ -477,12 +358,4 @@ control PostQosPipe (inout parsed_headers_t hdr,
     }
 }
 
-
-V1Switch(
-    ParserImpl(),
-    VerifyChecksumImpl(),
-    PreQosPipe(),
-    PostQosPipe(),
-    ComputeChecksumImpl(),
-    DeparserImpl()
-) main;
+#endif

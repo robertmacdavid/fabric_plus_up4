@@ -194,6 +194,7 @@ struct fabric_metadata_t {
     bit<8>        ip_proto;
     bit<16>       l4_sport;
     bit<16>       l4_dport;
+    bit<32>       ipv4_dst_addr;
 #ifdef WITH_SPGW
     spgw_meta_t   spgw;
 #endif // WITH_SPGW

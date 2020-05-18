@@ -65,6 +65,7 @@ control spgw_ingress(
         fabric_meta.spgw.s1u_enb_addr = s1u_enb_addr;
         fabric_meta.spgw.s1u_sgw_addr = s1u_sgw_addr;
         ue_counter.count();
+        fabric_meta.ipv4_dst_addr = s1u_enb_addr;
     }
 
     table dl_sess_lookup {

@@ -202,7 +202,7 @@ control Next (inout parsed_headers_t hdr,
     table hashed {
         key = {
             fabric_metadata.next_id: exact @name("next_id");
-            hdr.ipv4.dst_addr: selector;
+            fabric_metadata.ipv4_dst_addr: selector;
             hdr.ipv4.src_addr: selector;
             fabric_metadata.ip_proto: selector;
             fabric_metadata.l4_sport: selector;
