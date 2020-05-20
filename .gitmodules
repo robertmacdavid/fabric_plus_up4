@@ -1,3 +1,6 @@
 [submodule "fabric-p4test"]
 	path = fabric-p4test
 	url = https://github.com/robertmacdavid/fabric-p4test.git
+[submodule "fabric-tofino"]
+	path = fabric-tofino
+	url = https://github.com/opencord/fabric-tofino.git

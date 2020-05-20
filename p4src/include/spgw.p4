@@ -93,7 +93,7 @@ control spgw_ingress(
 
     action set_pdr_attributes(ctr_id_t ctr_id,
                               far_id_t far_id) {
-        fabric_meta.spgw.pdr_hit = true;
+        fabric_meta.spgw.pdr_hit = _TRUE;
         fabric_meta.spgw.ctr_id = ctr_id;
         fabric_meta.spgw.far_id = far_id;
     }
@@ -154,7 +154,7 @@ control spgw_ingress(
         fabric_meta.spgw.far_dropped = (_BOOL)drop;
         fabric_meta.spgw.notify_cp = (_BOOL)notify_cp;
         // GTP tunnel attributes
-        fabric_meta.spgw.outer_header_creation = true;
+        fabric_meta.spgw.outer_header_creation = _TRUE;
         fabric_meta.spgw.teid = teid;
         fabric_meta.spgw.s1u_enb_addr = s1u_enb_addr;
         fabric_meta.spgw.s1u_sgw_addr = s1u_sgw_addr;
@@ -203,7 +203,7 @@ control spgw_ingress(
             return;
         }
         // If those fail to find a match, use the wildcard tables
-        if (!fabric_meta.spgw.pdr_hit) {
+        if (fabric_meta.spgw.pdr_hit == _FALSE) {
             flexible_pdr_lookup.apply();
         }
 
@@ -211,10 +211,10 @@ control spgw_ingress(
         // Load FAR info
         far_lookup.apply();
 
-        if (fabric_meta.spgw.notify_cp) {
+        if (fabric_meta.spgw.notify_cp == _TRUE) {
             // TODO: cpu clone session here
         }
-        if (fabric_meta.spgw.far_dropped) {
+        if (fabric_meta.spgw.far_dropped == _TRUE) {
             // Do dropping in the same way as fabric's filtering.p4, so we can traverse
             // the ACL table, which is good for cases like DHCP.
             fabric_meta.skip_forwarding = _TRUE;
@@ -284,7 +284,7 @@ control spgw_egress(
     apply {
         pdr_counter.count(fabric_meta.spgw.ctr_id);
 
-        if (fabric_meta.spgw.outer_header_creation) {
+        if (fabric_meta.spgw.outer_header_creation == _TRUE) {
             gtpu_encap();
         }
     }
