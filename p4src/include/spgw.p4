@@ -59,7 +59,7 @@ control spgw_ingress(
     action gtpu_decap() {
         // grab information from the tunnel that we'll need later
         fabric_meta.spgw.teid = gtpu.teid;
-        fabric_meta.spgw.s1u_sgw_addr = gtpu_ipv4.dst_addr;
+        fabric_meta.spgw.tunnel_dst_addr = gtpu_ipv4.dst_addr;
         // update the new dstIP to be the decapped packet's dstIP
         fabric_meta.ipv4_dst_addr = ipv4.dst_addr;
         // decap
@@ -72,7 +72,7 @@ control spgw_ingress(
     table downlink_filter_table {
         key = {
             // UE addr pool for downlink
-            ipv4.dst_addr : lpm @name("ipv4_dst");
+            ipv4.dst_addr : lpm @name("ipv4_prefix");
         }
         actions = {
             nop();
@@ -109,8 +109,8 @@ control spgw_ingress(
     }
     table uplink_pdr_lookup {
         key = {
-            // Is tunnel_ipv4_dst needed for Q2 target? Will it be variable?
-            fabric_meta.spgw.s1u_sgw_addr  : exact @name("tunnel_ipv4_dst");
+            // tunnel_dst_addr will be static for Q2 target. Can remove if need more scaling
+            fabric_meta.spgw.tunnel_dst_addr  : exact @name("tunnel_ipv4_dst");
             fabric_meta.spgw.teid          : exact @name("teid");
             ipv4.src_addr                  : exact @name("ue_addr");
         }
@@ -122,10 +122,10 @@ control spgw_ingress(
     table flexible_pdr_lookup {
         key = {
             // Direction. Eventually change to interface
-            fabric_meta.spgw.direction    : exact @name("spgw_direction");
+            fabric_meta.spgw.direction    : ternary @name("spgw_direction");
             // F-TEID
-            fabric_meta.spgw.s1u_sgw_addr : exact @name("tunnel_ipv4_dst");
-            fabric_meta.spgw.teid         : exact @name("teid");
+            fabric_meta.spgw.tunnel_dst_addr : ternary @name("tunnel_ipv4_dst");
+            fabric_meta.spgw.teid            : ternary @name("teid");
             // SDF (5-tuple)
             ipv4.src_addr                 : ternary @name("ipv4_src");
             ipv4.dst_addr                 : ternary @name("ipv4_dst");
@@ -147,8 +147,8 @@ control spgw_ingress(
     }
     action load_tunnel_far_attributes(bit<1>         drop,
                                       bit<1>         notify_cp,
-                                      ipv4_addr_t    s1u_enb_addr,
-                                      ipv4_addr_t    s1u_sgw_addr,
+                                      ipv4_addr_t    tunnel_src_addr,
+                                      ipv4_addr_t    tunnel_dst_addr,
                                       teid_t         teid) {
         // general far attributes
         fabric_meta.spgw.far_dropped = (_BOOL)drop;
@@ -156,10 +156,10 @@ control spgw_ingress(
         // GTP tunnel attributes
         fabric_meta.spgw.outer_header_creation = _TRUE;
         fabric_meta.spgw.teid = teid;
-        fabric_meta.spgw.s1u_enb_addr = s1u_enb_addr;
-        fabric_meta.spgw.s1u_sgw_addr = s1u_sgw_addr;
+        fabric_meta.spgw.tunnel_src_addr = tunnel_src_addr;
+        fabric_meta.spgw.tunnel_dst_addr = tunnel_dst_addr;
         // update next-hop IP address for correct routing
-        fabric_meta.ipv4_dst_addr = s1u_enb_addr;
+        fabric_meta.ipv4_dst_addr = tunnel_dst_addr;
     }
 
 
@@ -181,6 +181,7 @@ control spgw_ingress(
             // S1U_SGW_PREFIX/S1U_SGW_PREFIX_LEN subnet.
             // TODO: check also that gtpu.msgtype == GTP_GPDU
             if (!uplink_filter_table.apply().hit) {
+                // Should this be changed to a forwarding/next skip instead of a drop?
                 mark_to_drop(standard_metadata);
             }
             fabric_meta.spgw.direction = SPGW_DIR_UPLINK;
@@ -257,8 +258,8 @@ control spgw_egress(
         gtpu_ipv4.frag_offset = 0;
         gtpu_ipv4.ttl = DEFAULT_IPV4_TTL;
         gtpu_ipv4.protocol = PROTO_UDP;
-        gtpu_ipv4.dst_addr = fabric_meta.spgw.s1u_enb_addr;
-        gtpu_ipv4.src_addr = fabric_meta.spgw.s1u_sgw_addr;
+        gtpu_ipv4.src_addr = fabric_meta.spgw.tunnel_src_addr;
+        gtpu_ipv4.dst_addr = fabric_meta.spgw.tunnel_dst_addr;
         gtpu_ipv4.hdr_checksum = 0; // Updated later
 
         gtpu_udp.setValid();

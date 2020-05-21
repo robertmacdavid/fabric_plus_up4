@@ -9,7 +9,7 @@ tables {
   }
   match_fields {
     id: 1
-    name: "ipv4_dst"
+    name: "ipv4_prefix"
     bitwidth: 32
     match_type: LPM
   }
@@ -103,19 +103,19 @@ tables {
     id: 1
     name: "spgw_direction"
     bitwidth: 2
-    match_type: EXACT
+    match_type: TERNARY
   }
   match_fields {
     id: 2
     name: "tunnel_ipv4_dst"
     bitwidth: 32
-    match_type: EXACT
+    match_type: TERNARY
   }
   match_fields {
     id: 3
     name: "teid"
     bitwidth: 32
-    match_type: EXACT
+    match_type: TERNARY
   }
   match_fields {
     id: 4
@@ -632,12 +632,12 @@ actions {
   }
   params {
     id: 3
-    name: "s1u_enb_addr"
+    name: "tunnel_src_addr"
     bitwidth: 32
   }
   params {
     id: 4
-    name: "s1u_sgw_addr"
+    name: "tunnel_dst_addr"
     bitwidth: 32
   }
   params {

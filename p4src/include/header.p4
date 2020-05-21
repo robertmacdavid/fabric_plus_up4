@@ -142,8 +142,8 @@ struct spgw_meta_t {
     direction_t       direction;
     bit<16>           ipv4_len;
     teid_t            teid;
-    bit<32>           s1u_enb_addr;
-    bit<32>           s1u_sgw_addr;
+    bit<32>           tunnel_src_addr;
+    bit<32>           tunnel_dst_addr;
 
     ctr_id_t         ctr_id;
     far_id_t         far_id;
